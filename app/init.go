@@ -1,7 +1,12 @@
 package app
 
 import (
+	"database/sql"
+	"fmt"
+	"github.com/joho/godotenv"
+	_ "github.com/lib/pq"
 	"github.com/revel/revel"
+	"os"
 )
 
 var (
@@ -10,7 +15,29 @@ var (
 
 	// BuildTime revel app build-time (ldflags)
 	BuildTime string
+
+	// DB Connector.
+	DB *sql.DB
 )
+
+func InitDB() {
+	var err error
+
+	err = godotenv.Load()
+	if err != nil {
+		revel.ERROR.Println("Error loading .env file")
+	}
+
+	pgUser := os.Getenv("POSTGRES_USER")
+	pgPassword := os.Getenv("POSTGRES_PASSWORD")
+	connstring := fmt.Sprintf("user=%s password='%s' dbname=%s sslmode=disable", pgUser, pgPassword, "gustly")
+
+	DB, err = sql.Open("postgres", connstring)
+	if err != nil {
+		revel.ERROR.Println("DB Error", err)
+	}
+	revel.INFO.Println("DB Connected")
+}
 
 func init() {
 	// Filters is the default set of global filters.
@@ -33,7 +60,7 @@ func init() {
 	// revel.DevMode and revel.RunMode only work inside of OnAppStart. See Example Startup Script
 	// ( order dependent )
 	// revel.OnAppStart(ExampleStartupScript)
-	// revel.OnAppStart(InitDB)
+	revel.OnAppStart(InitDB)
 	// revel.OnAppStart(FillCache)
 }
 
