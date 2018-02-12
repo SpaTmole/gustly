@@ -3,9 +3,12 @@ package app
 import (
 	"database/sql"
 	"fmt"
+	"github.com/SpaTmole/gustly/app/models"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
+	// rgorp "github.com/revel/modules/orm/gorp/app"
 	"github.com/revel/revel"
+	"gopkg.in/gorp.v2"
 	"os"
 )
 
@@ -16,9 +19,15 @@ var (
 	// BuildTime revel app build-time (ldflags)
 	BuildTime string
 
-	// DB Connector.
-	DB *sql.DB
+	// DB Manager.
+	DB *gorp.DbMap
 )
+
+func setColumnSizes(t *gorp.TableMap, colSizes map[string]int) {
+	for col, size := range colSizes {
+		t.ColMap(col).MaxSize = size
+	}
+}
 
 func InitDB() {
 	var err error
@@ -26,17 +35,31 @@ func InitDB() {
 	err = godotenv.Load()
 	if err != nil {
 		revel.ERROR.Println("Error loading .env file")
+		return
 	}
 
 	pgUser := os.Getenv("POSTGRES_USER")
 	pgPassword := os.Getenv("POSTGRES_PASSWORD")
 	connstring := fmt.Sprintf("user=%s password='%s' dbname=%s sslmode=disable", pgUser, pgPassword, "gustly")
 
-	DB, err = sql.Open("postgres", connstring)
+	conn, err := sql.Open("postgres", connstring)
 	if err != nil {
 		revel.ERROR.Println("DB Error", err)
 	}
 	revel.INFO.Println("DB Connected")
+
+	DB = &gorp.DbMap{Db: conn, Dialect: gorp.PostgresDialect{}}
+	t := DB.AddTable(models.User{})
+	setColumnSizes(t, map[string]int{
+		"Username": 100,
+		"Name":     100,
+		"Phone":    24,
+		"Email":    100,
+	})
+
+	// rgorp.Db.TraceOn(revel.AppLog)
+	DB.CreateTables()
+	revel.INFO.Println("Tables were set up.")
 }
 
 func init() {

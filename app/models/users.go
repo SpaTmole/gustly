@@ -1,19 +1,24 @@
 package models
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/revel/revel"
+	"golang.org/x/crypto/bcrypt"
 	"regexp"
 )
 
 type User struct {
-	Active         bool   `json:is_active`
-	Id             int    `json:id`
-	Friends        []User `json:friends`
-	Name           string `json:name`
-	Username       string `json:username`
-	Password       string
-	HashedPassword []byte
+	Active         bool   `json:is_active db:"is_active"`
+	Id             int    `json:id db:"id, primarykey, autoincrement"`
+	Friends        []User `json:friends db:"friends"`
+	Name           string `json:name db:"name"`
+	Username       string `json:username db:"username, primarykey"`
+	Phone          string `json:phone db:"phone"`
+	Email          string `json:email db:"email"`
+	Password       string `json:password db:"-"`
+	Verify         string `json:verify db:"-"`
+	hashedPassword []byte `json:"-" db:"hashed_password"`
 }
 
 func (u *User) String() string {
@@ -23,20 +28,14 @@ func (u *User) String() string {
 var userRegex = regexp.MustCompile("^\\w*$")
 
 func (user *User) Validate(v *revel.Validation) {
+	ValidatePassword(v, user.Password).
+		Key("user.password")
+
 	v.Check(user.Username,
 		revel.Required{},
-		revel.MaxSize{15},
 		revel.MinSize{4},
-		revel.Match{userRegex},
-	)
-
-	ValidatePassword(v, user.Password).
-		Key("user.Password")
-
-	v.Check(user.Name,
-		revel.Required{},
 		revel.MaxSize{100},
-	)
+	).Key("user.username")
 }
 
 func ValidatePassword(v *revel.Validation, password string) *revel.ValidationResult {
@@ -45,6 +44,15 @@ func ValidatePassword(v *revel.Validation, password string) *revel.ValidationRes
 		revel.MaxSize{15},
 		revel.MinSize{5},
 	)
+}
+
+func (user *User) SavePassword() {
+	user.hashedPassword, _ = bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+}
+
+func (user *User) CheckPassword(password string) bool {
+	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	return bytes.Equal(hashedPassword, user.hashedPassword)
 }
 
 func (u *User) Register() {
