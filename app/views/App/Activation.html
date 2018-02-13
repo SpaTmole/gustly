@@ -6,18 +6,34 @@
     <div class="span6">
         <h1>Please, create a password for new user:</h1>
         <form id="activation_form" method="POST">
+            {{with $field := field "activation_key" .}}
+                {{ if $field.Error }}
+                <span class="alert alert-danger">{{$field.Error}}</span>
+                {{ end }}
+            {{end}}
+            {{with $field := field "user.Password" .}}
             <div class="row">
                 <label>
                     Password:*
-                    <input type="password" name="password">
+                    <input type="password" name="password" value="{{$field.Flash}}">
+                    {{ if $field.Error }}
+                    <span class="alert alert-danger">{{$field.Error}}</span>
+                    {{ end }}
                 </label>
             </div>
+            {{end}}
+            <br/>
+            {{with $field := field "user.Verify" .}}
             <div class="row">
                 <label>
                     Repeat password:*
-                    <input type="password" name="verify">
+                    <input type="password" name="verify" value="{{$field.Flash}}">
+                    {{ if $field.Error }}
+                    <span class="alert alert-danger">{{$field.Error}}</span>
+                    {{ end }}
                 </label>
             </div>
+            {{end}}
             <button type="submit">Submit</button>
         </form>
     </div>

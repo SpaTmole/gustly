@@ -25,6 +25,7 @@ type User struct {
 }
 
 type RegistrationProfile struct {
+	Id            string `json:id db:"id, primarykey, autoincrement"`
 	Username      string `json:username db:"username, primarykey"`
 	Phone         string `json:phone db:"phone"`
 	Email         string `json:email db:"email"`
@@ -46,7 +47,9 @@ func (user *User) Validate(v *revel.Validation) map[string]*revel.ValidationErro
 	v.Check(user.Password,
 		revel.Required{},
 		revel.MinSize{5},
-	).Key("user.password")
+	).Key("user.Password")
+	v.Check(user.Verify, revel.Required{}).Key("user.Verify")
+	v.Required(user.Password == user.Verify).MessageKey("Passwords don't match").Key("user.Verify")
 
 	if v.HasErrors() {
 		return v.ErrorMap()
