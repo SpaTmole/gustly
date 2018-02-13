@@ -3,6 +3,7 @@ package app
 import (
 	"database/sql"
 	"fmt"
+	"github.com/SpaTmole/gustly/app/mail"
 	"github.com/SpaTmole/gustly/app/models"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
@@ -21,12 +22,23 @@ var (
 
 	// DB Manager.
 	DB *gorp.DbMap
+
+	// Email service interface
+	EmailService mail.MailSender
 )
 
 func setColumnSizes(t *gorp.TableMap, colSizes map[string]int) {
 	for col, size := range colSizes {
 		t.ColMap(col).MaxSize = size
 	}
+}
+
+func InitMailService() {
+	if revel.Config.BoolDefault("mode.dev", true) {
+		EmailService = &mail.ConsoleMailSender{}
+		revel.INFO.Println("Init Console Mail Service.")
+	}
+	// else SES
 }
 
 func InitDB() {
@@ -57,6 +69,13 @@ func InitDB() {
 		"Email":    100,
 	})
 
+	t = DB.AddTable(models.RegistrationProfile{})
+	setColumnSizes(t, map[string]int{
+		"Username":      100,
+		"Phone":         24,
+		"Email":         100,
+		"ActivationKey": 32,
+	})
 	// rgorp.Db.TraceOn(revel.AppLog)
 	DB.CreateTables()
 	revel.INFO.Println("Tables were set up.")
@@ -84,6 +103,7 @@ func init() {
 	// ( order dependent )
 	// revel.OnAppStart(ExampleStartupScript)
 	revel.OnAppStart(InitDB)
+	revel.OnAppStart(InitMailService)
 	// revel.OnAppStart(FillCache)
 }
 

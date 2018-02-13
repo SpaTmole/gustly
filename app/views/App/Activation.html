@@ -1,0 +1,27 @@
+{{set . "title" "Activation"}}
+{{template "header.html" .}}
+
+<div class="container">
+  <div class="row">
+    <div class="span6">
+        <h1>Please, create a password for new user:</h1>
+        <form id="activation_form" method="POST">
+            <div class="row">
+                <label>
+                    Password:*
+                    <input type="password" name="password">
+                </label>
+            </div>
+            <div class="row">
+                <label>
+                    Repeat password:*
+                    <input type="password" name="verify">
+                </label>
+            </div>
+            <button type="submit">Submit</button>
+        </form>
+    </div>
+  </div>
+</div>
+
+{{template "footer.html" .}}
