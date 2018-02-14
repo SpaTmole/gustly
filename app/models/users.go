@@ -3,6 +3,7 @@ package models
 import (
 	"bytes"
 	"fmt"
+	"github.com/jinzhu/gorm"
 	"github.com/revel/revel"
 	"golang.org/x/crypto/bcrypt"
 	"math/rand"
@@ -11,27 +12,26 @@ import (
 )
 
 type User struct {
-	// Friends        []User `json:friends db:"friends"`
-	Staff          bool   `json:is_staff db:"is_staff"`
-	Active         bool   `json:is_active db:"is_active"`
-	Id             int    `json:id db:"id, primarykey, autoincrement"`
-	Name           string `json:name db:"name"`
-	Username       string `json:username db:"username, primarykey"`
-	Phone          string `json:phone db:"phone"`
-	Email          string `json:email db:"email"`
-	Password       string `json:password db:"-"`
-	Verify         string `json:verify db:"-"`
-	HashedPassword []byte `json:"-" db:"hashed_password"`
+	gorm.Model
+	Staff          bool   `json:is_staff gorm:"default:false;"`
+	Active         bool   `json:is_active gorm:"default:true;"`
+	Name           string `json:name`
+	Username       string `json:username gorm:"size:100;unique_index;not null"`
+	Phone          string `json:phone`
+	Email          string `json:email;not null`
+	Password       string `json:password gorm:"-"`
+	Verify         string `json:verify gorm:"-"`
+	HashedPassword []byte `json:"-"`
 }
 
 type RegistrationProfile struct {
-	Id            string `json:id db:"id, primarykey, autoincrement"`
-	Username      string `json:username db:"username, primarykey"`
-	Phone         string `json:phone db:"phone"`
-	Email         string `json:email db:"email"`
-	ActivationKey string `json:activation_key db:"activation_key"`
-	Expires       int64  `json:expires_at db:"expires_at"`
-	Activated     bool   `json:is_active db:"is_active"`
+	gorm.Model
+	Username      string `json:username;not null`
+	Phone         string `json:phone`
+	Email         string `json:email;not null`
+	ActivationKey string `json:activation_key`
+	Expires       int64  `json:expires_at`
+	Activated     bool   `json:is_active gorm:"default:false;"`
 }
 
 func (u *User) String() string {

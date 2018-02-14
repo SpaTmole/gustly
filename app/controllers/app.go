@@ -19,8 +19,8 @@ func (c App) Index() revel.Result {
 
 func (c App) SignUp() revel.Result {
 	var err error
+	var count = 0
 	var user models.RegistrationProfile
-	var _unusedUser models.User
 	c.Params.BindJSON(&user)
 	fmt.Println(user)
 	// c.Validation.Required(user.Verify == user.Password).MessageKey("Passwords don't match").Key("user.verify")
@@ -28,13 +28,12 @@ func (c App) SignUp() revel.Result {
 	if errors != nil {
 		return c.RenderJSON(map[string]interface{}{"result": "fail", "errors": errors})
 	}
-	err = app.DB.SelectOne(&_unusedUser, "select * from \"User\" where \"Email\"=$1", user.Email)
-	if err == nil {
-		return c.RenderJSON(map[string]interface{}{"result": "fail", "errors": [1]string{"User with this email already exist."}})
+	app.DB.Model(&models.User{}).Where("email = ?", user.Email).Or("username = ?", user.Username).Count(&count)
+	if count != 0 {
+		return c.RenderJSON(map[string]interface{}{"result": "fail", "errors": [1]string{"User with this email or username already exist."}})
 	}
-	// user.SavePassword()
 	activation_key := user.GenerateKey()
-	err = app.DB.Insert(&user)
+	err = app.DB.Create(&user).Error
 	if err != nil {
 		panic(err)
 	}
@@ -51,7 +50,7 @@ func (c App) Activate(activation_key string) revel.Result {
 	var user models.RegistrationProfile
 	var err error
 	var errorMessage string
-	err = app.DB.SelectOne(&user, "select * from \"RegistrationProfile\" where \"ActivationKey\"=$1", activation_key)
+	err = app.DB.Where("activation_key = ?", activation_key).First(&user).Error
 	if err != nil {
 		revel.ERROR.Println(err)
 		errorMessage = "Activation key is invalid."
@@ -84,12 +83,12 @@ func (c App) Activate(activation_key string) revel.Result {
 		c.FlashParams()
 		return c.Redirect(App.RenderActivation, activation_key)
 	}
-	err = app.DB.Insert(&account)
+	err = app.DB.Create(&account).Error
 	if err != nil {
 		panic(err)
 	}
 	user.Activate()
-	_, err = app.DB.Update(&user)
+	err = app.DB.Save(&user).Error
 	if err != nil {
 		panic(err)
 	}

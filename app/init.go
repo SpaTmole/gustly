@@ -1,15 +1,13 @@
 package app
 
 import (
-	"database/sql"
 	"fmt"
 	"github.com/SpaTmole/gustly/app/mail"
 	"github.com/SpaTmole/gustly/app/models"
+	"github.com/jinzhu/gorm"
+	_ "github.com/jinzhu/gorm/dialects/postgres"
 	"github.com/joho/godotenv"
-	_ "github.com/lib/pq"
-	// rgorp "github.com/revel/modules/orm/gorp/app"
 	"github.com/revel/revel"
-	"gopkg.in/gorp.v2"
 	"os"
 )
 
@@ -21,17 +19,17 @@ var (
 	BuildTime string
 
 	// DB Manager.
-	DB *gorp.DbMap
+	DB *gorm.DB
 
 	// Email service interface
 	EmailService mail.MailSender
 )
 
-func setColumnSizes(t *gorp.TableMap, colSizes map[string]int) {
-	for col, size := range colSizes {
-		t.ColMap(col).MaxSize = size
-	}
-}
+// func setColumnSizes(t *gorp.TableMap, colSizes map[string]int) {
+// for col, size := range colSizes {
+// t.ColMap(col).MaxSize = size
+// }
+// }
 
 func InitMailService() {
 	if revel.Config.BoolDefault("mode.dev", true) {
@@ -54,31 +52,15 @@ func InitDB() {
 	pgPassword := os.Getenv("POSTGRES_PASSWORD")
 	connstring := fmt.Sprintf("user=%s password='%s' dbname=%s sslmode=disable", pgUser, pgPassword, "gustly")
 
-	conn, err := sql.Open("postgres", connstring)
+	DB, err = gorm.Open("postgres", connstring)
 	if err != nil {
 		revel.ERROR.Println("DB Error", err)
 	}
 	revel.INFO.Println("DB Connected")
-
-	DB = &gorp.DbMap{Db: conn, Dialect: gorp.PostgresDialect{}}
-	t := DB.AddTable(models.User{})
-	setColumnSizes(t, map[string]int{
-		"Username": 100,
-		"Name":     100,
-		"Phone":    24,
-		"Email":    100,
-	})
-
-	t = DB.AddTable(models.RegistrationProfile{})
-	setColumnSizes(t, map[string]int{
-		"Username":      100,
-		"Phone":         24,
-		"Email":         100,
-		"ActivationKey": 32,
-	})
-	// rgorp.Db.TraceOn(revel.AppLog)
-	DB.CreateTables()
-	revel.INFO.Println("Tables were set up.")
+	DB.AutoMigrate(&models.User{}, &models.RegistrationProfile{})
+	revel.INFO.Println("Migrations rolled up.")
+	DB.LogMode(true)
+	DB.SetLogger(gorm.Logger{revel.INFO})
 }
 
 func init() {
