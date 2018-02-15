@@ -57,7 +57,7 @@ func InitDB() {
 		revel.ERROR.Println("DB Error", err)
 	}
 	revel.INFO.Println("DB Connected")
-	DB.AutoMigrate(&models.User{}, &models.RegistrationProfile{})
+	DB.AutoMigrate(&models.User{}, &models.RegistrationProfile{}, &models.Token{})
 	revel.INFO.Println("Migrations rolled up.")
 	DB.LogMode(true)
 	DB.SetLogger(gorm.Logger{revel.INFO})

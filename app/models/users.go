@@ -1,7 +1,6 @@
 package models
 
 import (
-	"bytes"
 	"fmt"
 	"github.com/jinzhu/gorm"
 	"github.com/revel/revel"
@@ -18,10 +17,8 @@ type User struct {
 	Name           string `json:name`
 	Username       string `json:username gorm:"size:100;unique_index;not null"`
 	Phone          string `json:phone`
-	Email          string `json:email;not null`
-	Password       string `json:password gorm:"-"`
-	Verify         string `json:verify gorm:"-"`
-	HashedPassword []byte `json:"-"`
+	Email          string `json:email gorm:"not null"`
+	HashedPassword string `json:"-" gorm:"size:255"`
 }
 
 type RegistrationProfile struct {
@@ -34,39 +31,44 @@ type RegistrationProfile struct {
 	Activated     bool   `json:is_active gorm:"default:false;"`
 }
 
+type Token struct {
+	gorm.Model
+	AuthToken string `json:auth_token`
+	ExpiresAt int64  `json:expires_at`
+	User      User   `json:"-"`
+}
+
 func (u *User) String() string {
 	return fmt.Sprintf("User(%s)", u.Username)
 }
 
 var (
-	userRegex   = regexp.MustCompile("^\\w*$")
-	letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+	userRegex        = regexp.MustCompile("^\\w*$")
+	letterRunes      = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+	expirationPeriod = int64(7200) // TODO: Move to the config.
 )
 
-func (user *User) Validate(v *revel.Validation) map[string]*revel.ValidationError {
-	v.Check(user.Password,
-		revel.Required{},
-		revel.MinSize{5},
-	).Key("user.Password")
-	v.Check(user.Verify, revel.Required{}).Key("user.Verify")
-	v.Required(user.Password == user.Verify).MessageKey("Passwords don't match").Key("user.Verify")
-
-	if v.HasErrors() {
-		return v.ErrorMap()
-	}
-	return nil
+func (token *Token) Make() {
+	token.ExpiresAt = time.Now().Unix() + expirationPeriod
+	token.AuthToken = (&RegistrationProfile{}).GenerateKey()
 }
 
-func (user *User) SavePassword() {
-	user.HashedPassword, _ = bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+func (user *User) SavePassword(password string) {
+	hash, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	user.HashedPassword = string(hash)
 }
 
 func (user *User) CheckPassword(password string) bool {
-	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	return bytes.Equal(hashedPassword, user.HashedPassword)
+	err := bcrypt.CompareHashAndPassword([]byte(user.HashedPassword), []byte(password))
+	return err == nil
 }
 
-func (u *User) Activate() {
+func (user *User) Login(credentials *Credentials) (token *Token, expires int64) {
+	if user.CheckPassword(credentials.Password) {
+		token = &Token{User: *user}
+		token.Make()
+		expires = expirationPeriod
+	}
 	return
 }
 
@@ -81,13 +83,13 @@ func (p *RegistrationProfile) Validate(v *revel.Validation) map[string]*revel.Va
 
 func (p *RegistrationProfile) GenerateKey() string {
 	starting_time := time.Now()
-	rand.Seed(starting_time.UnixNano())
+	rand.Seed(starting_time.Unix())
 	buff := make([]rune, 32)
 	for idx := range buff {
 		buff[idx] = letterRunes[rand.Intn(len(letterRunes))]
 	}
 	p.ActivationKey = string(buff)
-	p.Expires = starting_time.AddDate(0, 0, 12).UnixNano() // 12 Days
+	p.Expires = starting_time.AddDate(0, 0, 12).Unix() // 12 Days TODO: Move to the config.
 	return string(buff)
 }
 
@@ -96,5 +98,5 @@ func (p *RegistrationProfile) Activate() {
 }
 
 func (p *RegistrationProfile) IsExpired() bool {
-	return time.Now().UnixNano() >= p.Expires
+	return time.Now().Unix() >= p.Expires
 }

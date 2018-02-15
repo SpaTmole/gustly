@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/SpaTmole/gustly/app"
 	"github.com/SpaTmole/gustly/app/mail"
@@ -45,11 +46,10 @@ func (c App) SignUp() revel.Result {
 }
 
 func (c App) Activate(activation_key string) revel.Result {
-	fmt.Println(c.Params.Form)
-	fmt.Println(activation_key)
 	var user models.RegistrationProfile
 	var err error
 	var errorMessage string
+	var form models.PasswordSubmition
 	err = app.DB.Where("activation_key = ?", activation_key).First(&user).Error
 	if err != nil {
 		revel.ERROR.Println(err)
@@ -66,23 +66,22 @@ func (c App) Activate(activation_key string) revel.Result {
 		c.FlashParams()
 		return c.Redirect(App.RenderActivation, activation_key)
 	}
+	c.Params.Bind(&form.Password, "password")
+	c.Params.Bind(&form.Verify, "verify")
+	form.Validate(c.Validation)
+	if c.Validation.HasErrors() {
+		c.Validation.Keep()
+		c.FlashParams()
+		return c.Redirect(App.RenderActivation, activation_key)
+	}
 	var account = models.User{
 		Active:   true,
 		Staff:    false,
 		Username: user.Username,
 		Phone:    user.Phone,
 		Email:    user.Email,
-		Password: c.Params.Form.Get("password"),
-		Verify:   c.Params.Form.Get("verify"),
 	}
-
-	fmt.Println(account)
-	account.Validate(c.Validation)
-	if c.Validation.HasErrors() {
-		c.Validation.Keep()
-		c.FlashParams()
-		return c.Redirect(App.RenderActivation, activation_key)
-	}
+	account.SavePassword(form.Password)
 	err = app.DB.Create(&account).Error
 	if err != nil {
 		panic(err)
@@ -92,11 +91,47 @@ func (c App) Activate(activation_key string) revel.Result {
 	if err != nil {
 		panic(err)
 	}
-	// Create User from password and Registration profile.
-	// Deactivate the Registration Profile.
 	return c.Redirect("/?activation=success")
 }
 
 func (c App) RenderActivation(activation_key string) revel.Result {
 	return c.RenderTemplate("App/Activation.html")
+}
+
+func (c App) Login() revel.Result {
+	var err error
+	defer func(err error) {
+		if err != nil {
+			revel.ERROR.Println(err)
+		}
+	}(err)
+	var credentials = models.Credentials{}
+	var user = models.User{}
+	var jsonResponse map[string]interface{}
+	c.Params.BindJSON(&credentials)
+	errors := credentials.Validate(c.Validation)
+	if errors != nil {
+		return c.RenderJSON(map[string]interface{}{"result": "fail", "errors": errors})
+	}
+	err = app.DB.Where("username = ?", credentials.Username).First(&user).Error
+	if err != nil {
+		return c.RenderJSON(map[string]interface{}{"result": "fail", "errors": []string{"Username or password is incorrect"}})
+	}
+	revel.INFO.Println(user)
+	token, expires := user.Login(&credentials)
+	if token == nil {
+		return c.RenderJSON(map[string]interface{}{"result": "fail", "errors": []string{"Username or password is incorrect"}})
+	}
+	err = app.DB.Create(&token).Error
+	if err != nil {
+		panic(err)
+	}
+	marshaled, _ := json.Marshal(token)
+	json.Unmarshal(marshaled, &jsonResponse)
+	jsonResponse["expires_in"] = expires
+	return c.RenderJSON(jsonResponse)
+}
+
+func (c App) Logout() revel.Result {
+	return c.RenderJSON(map[string]interface{}{"result": "fail"})
 }

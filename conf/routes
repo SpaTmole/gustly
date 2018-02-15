@@ -17,6 +17,8 @@ GET     /public/*filepath                       Static.Serve("public")
 POST    /signup                                 App.SignUp
 GET     /activate                               App.RenderActivation
 POST    /activate                               App.Activate
+POST    /login                                  App.Login
+POST    /logout                                 App.Logout
 
 # Catch all, this will route any request into the controller path
 #
