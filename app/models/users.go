@@ -12,13 +12,15 @@ import (
 
 type User struct {
 	gorm.Model
-	Staff          bool   `json:is_staff gorm:"default:false;"`
-	Active         bool   `json:is_active gorm:"default:true;"`
-	Name           string `json:name`
-	Username       string `json:username gorm:"size:100;unique_index;not null"`
-	Phone          string `json:phone`
-	Email          string `json:email gorm:"not null"`
-	HashedPassword string `json:"-" gorm:"size:255"`
+	Staff          bool    `json:is_staff gorm:"default:false;"`
+	Active         bool    `json:is_active gorm:"default:true;"`
+	Name           string  `json:name`
+	Username       string  `json:username gorm:"size:100;unique_index;not null"`
+	Phone          string  `json:phone`
+	Email          string  `json:email gorm:"not null"`
+	HashedPassword string  `json:"-" gorm:"size:255"`
+	Tokens         []Token `json:"-"`
+	Friends        []*User `json:"-" gorm:"many2many:friendships;association_jointable_foreignkey:friend_id"`
 }
 
 type RegistrationProfile struct {
@@ -35,7 +37,7 @@ type Token struct {
 	gorm.Model
 	AuthToken string `json:auth_token`
 	ExpiresAt int64  `json:expires_at`
-	User      User   `json:"-"`
+	UserID    uint   // IT'S A DAMN! Documentation doesn't tell it, but it MUST be specified explicitly.
 }
 
 func (u *User) String() string {
@@ -65,7 +67,7 @@ func (user *User) CheckPassword(password string) bool {
 
 func (user *User) Login(credentials *Credentials) (token *Token, expires int64) {
 	if user.CheckPassword(credentials.Password) {
-		token = &Token{User: *user}
+		token = &Token{}
 		token.Make()
 		expires = expirationPeriod
 	}

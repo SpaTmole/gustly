@@ -25,12 +25,6 @@ var (
 	EmailService mail.MailSender
 )
 
-// func setColumnSizes(t *gorp.TableMap, colSizes map[string]int) {
-// for col, size := range colSizes {
-// t.ColMap(col).MaxSize = size
-// }
-// }
-
 func InitMailService() {
 	if revel.Config.BoolDefault("mode.dev", true) {
 		EmailService = &mail.ConsoleMailSender{}
