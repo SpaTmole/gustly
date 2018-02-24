@@ -1,5 +1,5 @@
 test-results/
 tmp/
 routes/
-public/media/*
+media/*
 .env
