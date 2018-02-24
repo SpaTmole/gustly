@@ -16,7 +16,6 @@ type Private struct {
 
 func (c Private) Logout() revel.Result {
 	user, _ := c.Args["user"].(models.User)
-	fmt.Println("--->>>>>", user)
 	err := app.DB.Table("tokens").Where("user_id = ?", user.ID).UpdateColumns(map[string]interface{}{
 		"expires_at": 0,
 	}).Error
@@ -41,7 +40,7 @@ func Unauthorized(c *revel.Controller, msg string, objs ...interface{}) revel.Re
 	return c.RenderJSON(map[string]interface{}{"status": "Unauthorized", "message": finalText})
 }
 
-func authenticationMiddleware(c *revel.Controller) revel.Result {
+func AuthenticationMiddleware(c *revel.Controller) revel.Result {
 	var err error
 	var user models.User
 	var token models.Token
@@ -61,5 +60,5 @@ func authenticationMiddleware(c *revel.Controller) revel.Result {
 }
 
 func init() {
-	revel.InterceptFunc(authenticationMiddleware, revel.BEFORE, &Private{})
+	revel.InterceptFunc(AuthenticationMiddleware, revel.BEFORE, &Private{})
 }

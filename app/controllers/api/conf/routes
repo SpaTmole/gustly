@@ -1,0 +1,8 @@
+# api routes
+#
+# This file defines API module routes
+#
+
+GET             /                        App.Index
+POST            /stories/add/            StoriesController.AddStory
+GET             /stories/user/:user_id/       StoriesController.GetStory

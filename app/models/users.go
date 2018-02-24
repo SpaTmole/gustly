@@ -2,25 +2,26 @@ package models
 
 import (
 	"fmt"
+	"github.com/SpaTmole/gustly/app/utils"
 	"github.com/jinzhu/gorm"
 	"github.com/revel/revel"
 	"golang.org/x/crypto/bcrypt"
-	"math/rand"
-	"regexp"
 	"time"
 )
 
 type User struct {
 	gorm.Model
-	Staff          bool    `json:is_staff gorm:"default:false;"`
-	Active         bool    `json:is_active gorm:"default:true;"`
-	Name           string  `json:name`
-	Username       string  `json:username gorm:"size:100;unique_index;not null"`
-	Phone          string  `json:phone`
-	Email          string  `json:email gorm:"not null"`
-	HashedPassword string  `json:"-" gorm:"size:255"`
-	Tokens         []Token `json:"-"`
-	Friends        []*User `json:"-" gorm:"many2many:friendships;association_jointable_foreignkey:friend_id"`
+	Staff          bool     `json:is_staff gorm:"default:false;"`
+	Active         bool     `json:is_active gorm:"default:true;"`
+	Name           string   `json:name`
+	Username       string   `json:username gorm:"size:100;unique_index;not null"`
+	Phone          string   `json:phone`
+	Email          string   `json:email gorm:"not null"`
+	HashedPassword string   `json:"-" gorm:"size:255"`
+	Tokens         []Token  `json:"-"`
+	Stories        []Story  `json:"-"`
+	Friends        []*User  `json:"-" gorm:"many2many:friendships;association_jointable_foreignkey:friend_id"`
+	Views          []*Story `json:"-" gorm:"many2many:views;"`
 }
 
 type RegistrationProfile struct {
@@ -45,14 +46,12 @@ func (u *User) String() string {
 }
 
 var (
-	userRegex        = regexp.MustCompile("^\\w*$")
-	letterRunes      = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 	expirationPeriod = int64(7200) // TODO: Move to the config.
 )
 
 func (token *Token) Make() {
 	token.ExpiresAt = time.Now().Unix() + expirationPeriod
-	token.AuthToken = (&RegistrationProfile{}).GenerateKey()
+	token.AuthToken = utils.MakeUniqueKey(32)
 }
 
 func (user *User) SavePassword(password string) {
@@ -84,15 +83,9 @@ func (p *RegistrationProfile) Validate(v *revel.Validation) map[string]*revel.Va
 }
 
 func (p *RegistrationProfile) GenerateKey() string {
-	starting_time := time.Now()
-	rand.Seed(starting_time.Unix())
-	buff := make([]rune, 32)
-	for idx := range buff {
-		buff[idx] = letterRunes[rand.Intn(len(letterRunes))]
-	}
-	p.ActivationKey = string(buff)
-	p.Expires = starting_time.AddDate(0, 0, 12).Unix() // 12 Days TODO: Move to the config.
-	return string(buff)
+	p.ActivationKey = utils.MakeUniqueKey(32)
+	p.Expires = time.Now().AddDate(0, 0, 12).Unix() // 12 Days TODO: Move to the config.
+	return p.ActivationKey
 }
 
 func (p *RegistrationProfile) Activate() {
